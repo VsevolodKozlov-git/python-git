@@ -12,6 +12,7 @@ from pyvcs.repo import repo_find
 class ObjectsNotFound(Exception):
     pass
 
+
 def hash_object(data: bytes, fmt: str, write: bool = False) -> str:
     header = f'{fmt} {len(data)}\0'
     store = header + data.decode()
@@ -94,7 +95,8 @@ def cat_file(obj_name: str, pretty: bool = True) -> None:
     sha = shas[0]
     object_content_bytes = read_object(sha, gitdir)[1]
     object_content_decoded = object_content_bytes.decode('ascii')
-
+    if pretty:
+        print(object_content_decoded)
 
 def find_tree_files(tree_sha: str, gitdir: pathlib.Path) -> tp.List[tp.Tuple[str, str]]:
     # PUT YOUR CODE HERE
