@@ -23,6 +23,7 @@ class HashObjectTestCase(TestCase):
         expected_sha = "7e774cf533c51803125d4659f3488bd9dffc41a6"
         self.assertEqual(expected_sha, sha)
 
+
     def test_compute_object_id_and_create_a_blob(self):
         gitdir = repo.repo_create(".")
 

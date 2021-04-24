@@ -13,6 +13,14 @@ def convert_to_path_if_needed(workdir):
     return pathlib.Path(workdir)
 
 
+def get_git_folder_name():
+    try:
+        git_folder_name = os.environ["GIT_DIR"]
+    except KeyError:
+        git_folder_name = '.git'
+    return git_folder_name
+
+
 def repo_find(workdir: tp.Union[str, pathlib.Path] = ".") -> pathlib.Path:
     workdir = convert_to_path_if_needed(workdir)
 
@@ -27,7 +35,7 @@ def repo_find(workdir: tp.Union[str, pathlib.Path] = ".") -> pathlib.Path:
 
 
 def find_ready_repo_in_parents(workdir):
-    git_folder_name = os.environ["GIT_DIR"]
+    git_folder_name = get_git_folder_name()
     parts_of_workdir_path = workdir.absolute().parts
     for i in range(len(parts_of_workdir_path)):
         if parts_of_workdir_path[i] == git_folder_name:
@@ -38,7 +46,7 @@ def find_ready_repo_in_parents(workdir):
 
 
 def find_ready_repo_in_workdir(workdir):
-    git_folder_name = os.environ["GIT_DIR"]
+    git_folder_name = get_git_folder_name()
     all_in_workdir = workdir.glob('*')
     if any(map(lambda x: x.name == git_folder_name and x.is_dir(), all_in_workdir)):
         return workdir.joinpath(git_folder_name)
@@ -51,7 +59,7 @@ def repo_create(workdir: tp.Union[str, pathlib.Path]) -> pathlib.Path:
         filename = workdir.name
         raise Exception(f"{filename} is not a directory")
 
-    git_folder_name = os.environ["GIT_DIR"]
+    git_folder_name = get_git_folder_name()
     git_path = workdir.joinpath(git_folder_name)
     git_path.mkdir(exist_ok=True, parents=True)
 
