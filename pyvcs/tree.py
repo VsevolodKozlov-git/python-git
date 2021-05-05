@@ -10,29 +10,39 @@ from pyvcs.objects import hash_object
 from pyvcs.refs import get_ref, is_detached, resolve_head, update_ref
 
 
-def write_tree(gitdir: pathlib.Path, index: tp.List[GitIndexEntry], dirname: str = "") -> str:
-    last_dir = None
-    current_dir = dirname
-    content = b""
+def write_tree(gitdir: pathlib.Path, index: tp.List[GitIndexEntry], current_path: str = "") -> str:
+    full_tree = b''
     for entry in index:
-        current_name = os.path.relpath(entry.name, dirname)
-        if "/" in current_name:
-            left_slash = current_name.find("/")
-            last_dir = current_dir
-            current_dir = os.path.join(dirname, current_name[:left_slash])
-            if last_dir != current_dir:
-                entries_to_tree = []
-                for possible_entry in index:
-                    if possible_entry.name.startswith(current_dir):
-                        entries_to_tree.append(possible_entry)
-                inner_tree = write_tree(gitdir, entries_to_tree, current_dir)
-                content += f"40000 {current_dir}\x00".encode("ascii")
-                content += binascii.unhexlify(inner_tree)
+        current_path_elements = current_path.split('/') if current_path else entry.name.split('/')
+        if len(current_path_elements) > 1:
+            current_dir_name = current_path_elements[0]
+            mode = '40000'
+            tree_element = f'{mode} {current_dir_name}\0'.encode()
+            one_level_deeper_path = '/'.join(current_path_elements[1:])
+            deeper_tree_hash = bytes.fromhex(write_tree(gitdir, index, one_level_deeper_path))
+            tree_element += deeper_tree_hash
         else:
-            content += f"100644 {current_name}\x00".encode("ascii")
-            content += entry.sha1
-    tree = hash_object(content, "tree", True)
-    return tree
+            if current_path and current_path.find(entry.name) == -1:
+                continue
+
+            with open(entry.name, "rb") as entry_file:
+                entry_data = entry_file.read()
+                sha = bytes.fromhex(hash_object(entry_data, "blob", write=True))
+            mode = str(oct(entry.mode))[2:]
+            name = current_path_elements[0]
+            tree_element = f"{mode} {name}\0".encode()
+            tree_element += sha
+        full_tree += tree_element
+
+    tree_hash = hash_object(full_tree, "tree", write=True)
+    return tree_hash
+
+
+
+def calculate_stuff_for_test():
+    pass
+
+
 
 def commit_tree(
     gitdir: pathlib.Path,
