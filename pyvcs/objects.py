@@ -14,16 +14,16 @@ class ObjectsNotFound(Exception):
 
 
 def hash_object(data: bytes, fmt: str, write: bool = False) -> str:
-    header = f'{fmt} {len(data)}\0'
-    store = header + data.decode()
-    sha1 = hashlib.sha1(store.encode()).hexdigest()
+    header = f'{fmt} {len(data)}\0'.encode()
+    store = header + data
+    sha1 = hashlib.sha1(store).hexdigest()
 
     if write:
         gitdir = repo_find()
         blob_folder = gitdir.joinpath(f'objects/{sha1[:2]}')
         blob_folder.mkdir(parents=False, exist_ok=True)
         with open(blob_folder.joinpath(sha1[2:]), 'wb') as blob_file:
-            zipped_store= zlib.compress(store.encode())
+            zipped_store= zlib.compress(store)
             blob_file.write(zipped_store)
 
     return sha1
