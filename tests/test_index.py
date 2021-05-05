@@ -9,6 +9,13 @@ import pyvcs
 from pyvcs.index import GitIndexEntry, ls_files, read_index, update_index, write_index
 from pyvcs.repo import repo_create
 
+# >>> import struct
+# >>> values = (1, b"abc", 1.234)
+# >>> packed = struct.pack("L3sd", *values)
+# >>> packed
+# b'\x01\x00\x00\x00\x00\x00\x00\x00abc\x00\x00\x00\x00\x00X9\xb4\xc8v\xbe\xf3?'
+# >>> struct.unpack("L3sd", packed)
+# (1, b'abc', 1.234)
 
 @unittest.skipIf(pyvcs.__version_info__ < (0, 4, 0), "Нужна версия пакета 0.4.0 и выше")
 class GitIndexEntryTestCase(TestCase):

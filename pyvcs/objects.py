@@ -87,7 +87,6 @@ def read_tree(data: bytes) -> tp.List[tp.Tuple[int, str, str]]:
 
 
 def cat_file(obj_name: str, pretty: bool = True) -> None:
-    # PUT YOUR CODE HERE
     gitdir = repo_find()
     shas = resolve_object(obj_name, gitdir)
     if len(shas) > 1:
