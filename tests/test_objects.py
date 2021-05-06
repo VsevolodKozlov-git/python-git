@@ -172,7 +172,7 @@ class CatFileTestCase(TestCase):
         )
 
         with patch("sys.stdout", new=io.StringIO()) as out:
-            objects.cat_file(sha, pretty=True)
+            saved = objects.cat_file(sha, pretty=True)
             self.assertEqual(expected_output, out.getvalue().strip())
 
     @unittest.skipIf(pyvcs.__version_info__ < (0, 6, 0), "Нужна версия пакета 0.6.0 и выше")

@@ -82,14 +82,19 @@ def separate_by_index(obj_to_separate, sep_index: int):
     return obj_to_separate[:sep_index], obj_to_separate[sep_index + 1:]
 
 
-def read_tree(data: bytes) -> tp.List[tp.Tuple[int, str, str]]:
+def read_tree(data: bytes):
     shas_enc, data_without_sha_enc = pop_sha(data)
     shas = list(map(lambda x: x.hex(), shas_enc))
     data_without_sha = data_without_sha_enc.decode()
-    sep_data = data_without_sha.split(' ')
-    permissions = sep_data[::2]
-    names = sep_data[::2]
+    sep_data_raw = data_without_sha.split(' ')
+    sep_data = list(filter(lambda x: x != '', sep_data_raw))
+
+    permissions_raw = sep_data[::2]
+    permissions = list(map(lambda x: '0' * (6 - len(x)) + x, permissions_raw))
+
+    names = sep_data[1::2]
     return [permissions, shas, names]
+
 
 
 def pop_sha(data):
@@ -114,17 +119,20 @@ def cat_file(obj_name: str, pretty: bool = True) -> None:
         permissions, shas, names = read_tree(object_content_bytes)
         resulting_string = ''
         for i in range(len(shas)):
+
             perm = permissions[i]
             sha = shas[i]
             name = names[i]
             type = 'tree' if perm == '040000' else 'blob'
-            resulting_string += f'{perm} {type} {sha}\t{name}'
+            resulting_string += f'{perm} {type} {sha}\t{name}\n'
 
+        if pretty:
+            print(resulting_string)
+            return resulting_string
     else:
         object_content_decoded = object_content_bytes.decode('ascii')
         if pretty:
             print(object_content_decoded)
-
 
 def find_tree_files(tree_sha: str, gitdir: pathlib.Path) -> tp.List[tp.Tuple[str, str]]:
     # PUT YOUR CODE HERE
