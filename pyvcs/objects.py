@@ -9,6 +9,7 @@ import zlib
 from pyvcs.refs import update_ref
 from pyvcs.repo import repo_find
 
+
 class ObjectsNotFound(Exception):
     pass
 
@@ -23,7 +24,7 @@ def hash_object(data: bytes, fmt: str, write: bool = False) -> str:
         blob_folder = gitdir.joinpath(f'objects/{sha1[:2]}')
         blob_folder.mkdir(parents=False, exist_ok=True)
         with open(blob_folder.joinpath(sha1[2:]), 'wb') as blob_file:
-            zipped_store= zlib.compress(store)
+            zipped_store = zlib.compress(store)
             blob_file.write(zipped_store)
 
     return sha1
@@ -50,7 +51,7 @@ def resolve_object(obj_name: str, gitdir: pathlib.Path) -> tp.List[str]:
 
 
 def find_object(obj_name: str, gitdir: pathlib.Path) -> str:
-    raise  Exception("Не реализовано!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    raise Exception("Не реализовано!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
 
 def read_object(sha: str, gitdir: pathlib.Path) -> tp.Tuple[str, bytes]:
@@ -71,19 +72,35 @@ def separate_obj_data(obj_data: bytes) -> tp.Tuple[bytes, bytes]:
     return header, content
 
 
-def separate_header(header:bytes):
+def separate_header(header: bytes):
     sep_index = header.find(b' ')
     fmt, content_len = separate_by_index(header, sep_index)
     return fmt, content_len
 
 
-def separate_by_index(obj_to_separate, sep_index:int):
-    return obj_to_separate[:sep_index], obj_to_separate[sep_index+1:]
+def separate_by_index(obj_to_separate, sep_index: int):
+    return obj_to_separate[:sep_index], obj_to_separate[sep_index + 1:]
 
 
 def read_tree(data: bytes) -> tp.List[tp.Tuple[int, str, str]]:
-    # PUT YOUR CODE HERE
-    ...
+    shas_enc, data_without_sha_enc = pop_sha(data)
+    shas = list(map(lambda x: x.hex(), shas_enc))
+    data_without_sha = data_without_sha_enc.decode()
+    sep_data = data_without_sha.split(' ')
+    permissions = sep_data[::2]
+    names = sep_data[::2]
+    return [permissions, shas, names]
+
+
+def pop_sha(data):
+    shas = []
+    zero_byte = data.find(b'\0')
+    while zero_byte != -1:
+        shas.append(data[zero_byte + 1:zero_byte + 21])
+        data = data[:zero_byte] + b' ' + data[zero_byte + 21:]
+        zero_byte = data.find(b'\0', zero_byte + 1)
+
+    return shas, data
 
 
 def cat_file(obj_name: str, pretty: bool = True) -> None:
@@ -92,12 +109,21 @@ def cat_file(obj_name: str, pretty: bool = True) -> None:
     if len(shas) > 1:
         raise Exception('specify longer name')
     sha = shas[0]
-    object_content_bytes = read_object(sha, gitdir)[1]
-    object_content_decoded = object_content_bytes.decode('ascii')
-    if pretty:
-        print(object_content_decoded)
+    object_type, object_content_bytes = read_object(sha, gitdir)
+    if object_type == 'tree':
+        permissions, shas, names = read_tree(object_content_bytes)
+        resulting_string = ''
+        for i in range(len(shas)):
+            perm = permissions[i]
+            sha = shas[i]
+            name = names[i]
+            type = 'tree' if perm == '040000' else 'blob'
+            resulting_string += f'{perm} {type} {sha}\t{name}'
 
-
+    else:
+        object_content_decoded = object_content_bytes.decode('ascii')
+        if pretty:
+            print(object_content_decoded)
 
 
 def find_tree_files(tree_sha: str, gitdir: pathlib.Path) -> tp.List[tp.Tuple[str, str]]:

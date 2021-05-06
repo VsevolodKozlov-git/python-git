@@ -69,4 +69,3 @@ def convert_timezone_to_hours(timezone_in_seconds):
      left_zeros = '0' * (2 - len(str(hours)))
      sign = '+' if hours >= 0 else '-'
      return f'{sign}{left_zeros}{hours}00'
-
