@@ -163,7 +163,6 @@ class CatFileTestCase(TestCase):
         entries = index.read_index(gitdir)
         sha = tree.write_tree(gitdir, entries)
         self.assertEqual("a9cde03408c68cbb205b038140b4c3a38aa1d01a", sha)
-
         expected_output = "\n".join(
             [
                 "040000 tree 7926bf494dcdb82261e1ca113116610f8d05470b\talphabeta",

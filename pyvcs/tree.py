@@ -5,6 +5,11 @@ import time
 import typing as tp
 import binascii
 
+
+import time
+from datetime import datetime
+
+
 from pyvcs.index import GitIndexEntry, read_index
 from pyvcs.objects import hash_object
 from pyvcs.refs import get_ref, is_detached, resolve_head, update_ref
@@ -38,12 +43,30 @@ def write_tree(gitdir: pathlib.Path, index: tp.List[GitIndexEntry], current_path
     return full_tree_hash
 
 
-def commit_tree(
-    gitdir: pathlib.Path,
-    tree: str,
-    message: str,
-    parent: tp.Optional[str] = None,
-    author: tp.Optional[str] = None,
-) -> str:
-    # PUT YOUR CODE HERE
-    ...
+def commit_tree( gitdir: pathlib.Path, tree: str, message: str, parent: tp.Optional[str] = None, author: tp.Optional[str] = None) -> str:
+    timezone = get_timezone()
+    timestamp= int(time.mktime(time.localtime()))
+
+    author = author if author is not None else ''
+    author_time_zone = f'{author} {timestamp} {timezone}'
+    parent_string = f'parent {parent}\n' if parent is not None else ''
+
+    commit_file_data = f'tree {tree}\n' \
+                       f'{parent_string}' \
+                       f'author {author_time_zone}\n' \
+                       f'committer {author_time_zone}\n' \
+                       f'\n' \
+                       f'{message}\n'
+    return hash_object(commit_file_data.encode(), 'commit', True)
+
+def get_timezone():
+    local_time = time.localtime()
+    timezone_in_seconds = -time.timezone
+    return convert_timezone_to_hours(timezone_in_seconds)
+
+def convert_timezone_to_hours(timezone_in_seconds):
+     hours =  timezone_in_seconds // 3600
+     left_zeros = '0' * (2 - len(str(hours)))
+     sign = '+' if hours >= 0 else '-'
+     return f'{sign}{left_zeros}{hours}00'
+
