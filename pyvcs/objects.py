@@ -128,17 +128,80 @@ def cat_file(obj_name: str, pretty: bool = True) -> None:
 
         if pretty:
             print(resulting_string)
-            return resulting_string
     else:
         object_content_decoded = object_content_bytes.decode('ascii')
         if pretty:
             print(object_content_decoded)
 
-def find_tree_files(tree_sha: str, gitdir: pathlib.Path) -> tp.List[tp.Tuple[str, str]]:
-    # PUT YOUR CODE HERE
-    ...
+
+def find_all_files_from_commit_sha(gitdir: pathlib.Path, commit_sha:str):
+    """
+
+    :param gitdir:
+    :param commit_sha:
+    :return: файлы / дирректории в виде списка из (sha, name)
+    """
+    tree_sha = get_tree_sha_from_commit(gitdir, commit_sha)
+    child_files = find_tree_files(gitdir, tree_sha)
+    parent = find_commit_parent(gitdir, commit_sha)
+    if parent is not None:
+        all_files = child_files.copy()
+        parent_files = find_all_files_from_commit_sha(gitdir, parent)
+        for i in range(len(parent_files)):
+            parent_file = parent_files[i]
+            parent_file_sha = parent_file[0]
+            for child_file_sha, _ in child_files:
+                if parent_file_sha == child_file_sha:
+                    break
+            else:
+                all_files.append(parent_file)
+    else:
+        all_files = child_files
+    return all_files
+
+
+def find_tree_files(gitdir: pathlib.Path, tree_sha:str) -> tp.List[tp.Tuple[str, pathlib.Path]]:
+    tree_in_bytes = read_object(tree_sha, gitdir)[1]
+    permissions, shas, names = read_tree(tree_in_bytes)
+    all_tree_files = []
+    for i in range(len(permissions)):
+        if permissions[i] == '040000':
+            name_old = names[i]
+            shas_new, names_continue = zip(*find_tree_files(gitdir, shas[i]))
+            for name_continue, sha_new in zip(names_continue, shas_new):
+                all_tree_files.append((sha_new, pathlib.Path(name_old)/ pathlib.Path(name_continue)))
+        else:
+            all_tree_files.append((shas[i], names[i]))
+    return all_tree_files
+
+
+def get_tree_sha_from_commit(gitdir: pathlib.Path, commit_sha: str):
+    commit_in_bytes= read_object(commit_sha, gitdir)
+    commit_decoded = commit_in_bytes[1].decode()
+    tree_sha = commit_decoded.split('\n')[0].split(' ')[1]
+    return tree_sha
+
+# commit_file_data = f'tree {tree}\n' \
+#                    f'{parent_string}' \
+#                    f'author {author_time_zone}\n' \
+#                    f'committer {author_time_zone}\n' \
+#                    f'\n' \
+#                    f'{message}\n'
+
+
+def find_commit_parent(gitdir: pathlib.Path, commit_sha: str):
+    commit_in_bytes = read_object(commit_sha, gitdir)
+    commit_decoded = commit_in_bytes[1].decode()
+    maybe_parent = commit_decoded.split('\n')[1].split(' ')[1]
+    if len(maybe_parent) == 40:
+        return maybe_parent
+    return None
+
+
+
 
 
 def commit_parse(raw: bytes, start: int = 0, dct=None):
     # PUT YOUR CODE HERE
     ...
+

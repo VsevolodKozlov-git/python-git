@@ -25,6 +25,7 @@ def ref_resolve(gitdir: pathlib.Path, refname: str) -> str:
     with open(gitdir / ref_path, 'r') as ref_file:
         return ref_file.read()
 
+
 def resolve_head(gitdir: pathlib.Path) -> tp.Optional[str]:
     head_branch_path = get_ref(gitdir)
     if not (gitdir / pathlib.Path(head_branch_path)).exists():
