@@ -136,17 +136,17 @@ def cat_file(obj_name: str, pretty: bool = True) -> None:
 
 def find_all_files_from_commit_sha(gitdir: pathlib.Path, commit_sha:str):
     """
-
     :param gitdir:
     :param commit_sha:
     :return: файлы / дирректории в виде списка из (sha, name)
     """
+
     tree_sha = get_tree_sha_from_commit(gitdir, commit_sha)
-    child_files = find_tree_files(gitdir, tree_sha)
-    parent = find_commit_parent(gitdir, commit_sha)
-    if parent is not None:
+    child_files = list(zip(*find_tree_files(gitdir, tree_sha, pathlib.Path(''))))
+    parent_sha = find_commit_parent(gitdir, commit_sha)
+    if parent_sha is not None:
         all_files = child_files.copy()
-        parent_files = find_all_files_from_commit_sha(gitdir, parent)
+        parent_files = find_all_files_from_commit_sha(gitdir, parent_sha)
         for i in range(len(parent_files)):
             parent_file = parent_files[i]
             parent_file_sha = parent_file[0]
@@ -160,19 +160,25 @@ def find_all_files_from_commit_sha(gitdir: pathlib.Path, commit_sha:str):
     return all_files
 
 
-def find_tree_files(gitdir: pathlib.Path, tree_sha:str) -> tp.List[tp.Tuple[str, pathlib.Path]]:
+def find_tree_files(gitdir: pathlib.Path, tree_sha:str, sub_obj_root: pathlib.Path) -> tp.Tuple[tp.List, tp.List]:
     tree_in_bytes = read_object(tree_sha, gitdir)[1]
-    permissions, shas, names = read_tree(tree_in_bytes)
     all_tree_files = []
-    for i in range(len(permissions)):
-        if permissions[i] == '040000':
-            name_old = names[i]
-            shas_new, names_continue = zip(*find_tree_files(gitdir, shas[i]))
-            for name_continue, sha_new in zip(names_continue, shas_new):
-                all_tree_files.append((sha_new, pathlib.Path(name_old)/ pathlib.Path(name_continue)))
-        else:
-            all_tree_files.append((shas[i], names[i]))
-    return all_tree_files
+    all_tree_files_sha = []
+    for sub_obj_permissions, sub_obj_sha, sub_obj_name  in zip(*read_tree(tree_in_bytes)):
+        all_tree_files_sha.append(sub_obj_sha)
+        full_obj_path = sub_obj_root / sub_obj_name
+        all_tree_files.append(full_obj_path)
+        if sub_obj_permissions == '040000':
+            deeper_files_sha, deeper_files = find_tree_files(gitdir, sub_obj_sha, full_obj_path)
+            all_tree_files_sha += deeper_files_sha
+            all_tree_files += deeper_files
+    return all_tree_files_sha, all_tree_files
+
+
+
+def get_tree_content(gitdir, tree_sha):
+    tree_in_bytes = read_object(tree_sha, gitdir)[1]
+    sub_obj_permissions, sub_obj_shas, sub_obj_dir_names = read_tree(tree_in_bytes)
 
 
 def get_tree_sha_from_commit(gitdir: pathlib.Path, commit_sha: str):
@@ -180,13 +186,6 @@ def get_tree_sha_from_commit(gitdir: pathlib.Path, commit_sha: str):
     commit_decoded = commit_in_bytes[1].decode()
     tree_sha = commit_decoded.split('\n')[0].split(' ')[1]
     return tree_sha
-
-# commit_file_data = f'tree {tree}\n' \
-#                    f'{parent_string}' \
-#                    f'author {author_time_zone}\n' \
-#                    f'committer {author_time_zone}\n' \
-#                    f'\n' \
-#                    f'{message}\n'
 
 
 def find_commit_parent(gitdir: pathlib.Path, commit_sha: str):
@@ -198,8 +197,8 @@ def find_commit_parent(gitdir: pathlib.Path, commit_sha: str):
     return None
 
 
-
-
+def get_tracked_files_list(gitdir: pathlib.Path):
+    pass
 
 def commit_parse(raw: bytes, start: int = 0, dct=None):
     # PUT YOUR CODE HERE

@@ -6,7 +6,7 @@ from pyvcs.index import read_index, update_index
 from pyvcs.objects import commit_parse, find_object, find_tree_files, read_object, find_all_files_from_commit_sha
 from pyvcs.refs import get_ref, is_detached, resolve_head, update_ref
 from pyvcs.tree import commit_tree, write_tree
-
+import shutil
 
 def add(gitdir: pathlib.Path, paths: tp.List[pathlib.Path]) -> None:
     update_index(gitdir, paths, True)
@@ -33,7 +33,45 @@ def checkout(gitdir: pathlib.Path, commit_sha: str) -> None:
     Изменяет положение головы и удаляет все файлы и дирректрории, ненаходящиеся в измененоном
     положении HEAD. Дирректория удаляется если в она была добавлена только следующем коммите
     '''
-    files_that_should_be = find_all_files_from_commit_sha(gitdir, commit_sha)
+    files_shas, needed_files = zip(*find_all_files_from_commit_sha(gitdir, commit_sha))
+    print(files_shas, needed_files)
+    file_indexes_to_create = delete_files_and_return_file_to_create(gitdir, needed_files)
+    for index in file_indexes_to_create:
+        pass
 
 
+def delete_files_and_return_file_to_create(gitdir: pathlib.Path, needed_files):
+    """
 
+    :param gitdir:
+    :param needed_files:
+    :return: needed files not found
+    """
+    file_indexes_to_create = []
+    root_folder = gitdir.parent
+    all_files = root_folder.glob('**/*')
+    all_files = [x for x in all_files if '.git' not in str(x)]
+    for file in all_files:
+        file_relative_path = file.relative_to(root_folder)
+        if file_relative_path not in needed_files:
+            if file_relative_path.absolute().exists:
+                try:
+                    rm_tree(file_relative_path)
+                except FileNotFoundError:
+                    pass
+        else:
+            if not file_relative_path.exists:
+                file_indexes_to_create.append(needed_files.index(file_relative_path))
+    return file_indexes_to_create
+
+
+def rm_tree(pth: pathlib.Path):
+    if pth.is_file():
+        pth.unlink()
+    else:
+        for child in pth.iterdir():
+            if child.is_file():
+                child.unlink()
+            else:
+                rm_tree(child)
+        pth.rmdir()
