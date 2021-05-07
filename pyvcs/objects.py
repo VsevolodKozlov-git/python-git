@@ -197,8 +197,12 @@ def find_commit_parent(gitdir: pathlib.Path, commit_sha: str):
     return None
 
 
-def get_tracked_files_list(gitdir: pathlib.Path):
-    pass
+def get_tracked_files(gitdir: pathlib.Path):
+    master_branch_path = gitdir / 'refs' / 'heads' / 'master'
+    with open(master_branch_path, 'r') as file:
+        master_commit_sha = file.read()
+    tracked_files = list(zip(*find_all_files_from_commit_sha(gitdir, master_commit_sha)))[1]
+    return tracked_files
 
 def commit_parse(raw: bytes, start: int = 0, dct=None):
     # PUT YOUR CODE HERE

@@ -3,10 +3,10 @@ import pathlib
 import typing as tp
 
 from pyvcs.index import read_index, update_index
-from pyvcs.objects import commit_parse, find_object, find_tree_files, read_object, find_all_files_from_commit_sha
-from pyvcs.refs import get_ref, is_detached, resolve_head, update_ref
+from pyvcs.objects import read_object, find_all_files_from_commit_sha, get_tracked_files
+from pyvcs.refs import get_ref, resolve_head, update_ref
 from pyvcs.tree import commit_tree, write_tree
-import shutil
+
 
 def add(gitdir: pathlib.Path, paths: tp.List[pathlib.Path]) -> None:
     update_index(gitdir, paths, True)
@@ -20,9 +20,6 @@ def commit(gitdir: pathlib.Path, message: str, author: tp.Optional[str] = None) 
     commit_sha = commit_tree(gitdir, tree_hash,message,parent=parent, author=author)
     update_ref(gitdir, get_ref(gitdir), commit_sha)
     return commit_sha
-    # Обновляем положение головы
-    # head_ref = get_ref(gitdir)
-    # update_ref(gitdir, ref=head_ref, new_value=commit_hash)
 
 
 def checkout(gitdir: pathlib.Path, commit_sha: str) -> None:
@@ -34,10 +31,19 @@ def checkout(gitdir: pathlib.Path, commit_sha: str) -> None:
     положении HEAD. Дирректория удаляется если в она была добавлена только следующем коммите
     '''
     files_shas, needed_files = zip(*find_all_files_from_commit_sha(gitdir, commit_sha))
-    print(files_shas, needed_files)
     file_indexes_to_create = delete_files_and_return_file_to_create(gitdir, needed_files)
     for index in file_indexes_to_create:
-        pass
+        file_path : pathlib.Path = needed_files[index] 
+        file_sha = files_shas[index]
+        file_type, file_content = read_object(file_sha, gitdir)[1]
+        if file_type == 'tree':
+            file_path.mkdir(parents=True, exist_ok=True)
+        if file_type == 'blob':
+            with open(file_path, 'w') as file:
+                file.write(file_content)
+
+    with open(gitdir/'HEAD', 'w') as file:
+        file.write(commit_sha)
 
 
 def delete_files_and_return_file_to_create(gitdir: pathlib.Path, needed_files):
@@ -47,6 +53,7 @@ def delete_files_and_return_file_to_create(gitdir: pathlib.Path, needed_files):
     :param needed_files:
     :return: needed files not found
     """
+    tracked_files = get_tracked_files(gitdir)
     file_indexes_to_create = []
     root_folder = gitdir.parent
     all_files = root_folder.glob('**/*')
@@ -54,7 +61,7 @@ def delete_files_and_return_file_to_create(gitdir: pathlib.Path, needed_files):
     for file in all_files:
         file_relative_path = file.relative_to(root_folder)
         if file_relative_path not in needed_files:
-            if file_relative_path.absolute().exists:
+            if file_relative_path.absolute().exists and file_relative_path in tracked_files:
                 try:
                     rm_tree(file_relative_path)
                 except FileNotFoundError:
